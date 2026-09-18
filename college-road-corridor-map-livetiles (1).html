@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>College Rd Corridor Access Survey (Live Map)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  :root{
+    --bg: #0f6265;
+    --panel: color-mix(in srgb, #0f6265 82%, black);
+    --panel-2: color-mix(in srgb, #0f6265 66%, black);
+    --grid: rgba(129,130,130,0.16);
+    --grid-strong: #818282;
+    --line: #3ec1cd;
+    --line-bright: #ffffff;
+    --ink: #ffffff;
+    --ink-dim: color-mix(in srgb, #ffffff 62%, #0f6265 38%);
+    --amber: #fbd20b;
+    --rose: #ec008c;
+    --err: #de594c;
+    --highlight: #aed136;
+    --ok-border: color-mix(in srgb, #818282 55%, #0f6265 45%);
+    --accent-2: #a13bcd;
+    --accent-3: #8d3418;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="light"]){
+      --bg: #0f6265; --panel: color-mix(in srgb, #0f6265 82%, black); --panel-2: color-mix(in srgb, #0f6265 66%, black);
+      --grid: rgba(129,130,130,0.16); --grid-strong: #818282;
+      --line: #3ec1cd; --line-bright: #ffffff; --ink: #ffffff; --ink-dim: color-mix(in srgb, #ffffff 62%, #0f6265 38%);
+      --amber: #fbd20b; --rose: #ec008c; --err: #de594c; --highlight: #aed136; --ok-border: color-mix(in srgb, #818282 55%, #0f6265 45%);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg: #0f6265; --panel: color-mix(in srgb, #0f6265 82%, black); --panel-2: color-mix(in srgb, #0f6265 66%, black);
+    --grid: rgba(129,130,130,0.16); --grid-strong: #818282;
+    --line: #3ec1cd; --line-bright: #ffffff; --ink: #ffffff; --ink-dim: color-mix(in srgb, #ffffff 62%, #0f6265 38%);
+    --amber: #fbd20b; --rose: #ec008c; --err: #de594c; --highlight: #aed136; --ok-border: color-mix(in srgb, #818282 55%, #0f6265 45%);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    padding: 28px 20px 60px;
+  }
+
+  .sheet{
+    max-width: 1180px;
+    margin: 0 auto;
+    border: 1px solid var(--grid-strong);
+    background: rgba(12,26,38,0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  /* Title block */
+  .titleblock{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom: 1px solid var(--grid-strong);
+    padding: 18px 22px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .titleblock .eyebrow{
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .titleblock h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(22px, 3.2vw, 32px);
+    margin: 0 0 4px;
+    color: var(--line-bright);
+    letter-spacing: -0.01em;
+  }
+  .titleblock .sub{
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    max-width: 46ch;
+    line-height: 1.5;
+  }
+
+  /* Controls */
+  .controls{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--grid-strong);
+    align-items: end;
+  }
+  @media (max-width: 640px){ .controls{ grid-template-columns: 1fr; } }
+
+  .field label{
+    display:block;
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .field .inputwrap{
+    display:flex; align-items:center;
+    border: 1px solid var(--grid-strong);
+    background: var(--panel-2);
+  }
+  .field .inputwrap span{
+    padding: 0 8px;
+    color: var(--ink-dim);
+    font-size: 13px;
+    border-right: 1px solid var(--grid-strong);
+  }
+  .field input{
+    flex:1;
+    background: transparent;
+    border: none;
+    color: var(--line-bright);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    padding: 10px 10px;
+    outline: none;
+    min-width: 0;
+  }
+  .field input::placeholder{ color: #3f5b70; }
+  .field .hint{
+    font-size: 10px;
+    color: #4d6a80;
+    margin-top: 5px;
+  }
+  .field .hint.warn{ color: var(--amber); }
+
+  button.plot{
+    background: var(--amber);
+    color: var(--bg);
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    padding: 12px 20px;
+    cursor: pointer;
+    height: 41px;
+    transition: filter 0.15s ease, transform 0.05s ease;
+  }
+  button.plot:hover{ filter: brightness(1.1); }
+  button.plot:active{ transform: translateY(1px); }
+  button.plot:focus-visible{ outline: 2px solid var(--line-bright); outline-offset: 2px; }
+
+  .seg{
+    display:flex;
+    border: 1px solid var(--grid-strong);
+    background: var(--panel-2);
+  }
+  .segbtn{
+    flex:1;
+    background: transparent;
+    border: none;
+    color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    padding: 10px 8px;
+    cursor: pointer;
+  }
+  .segbtn + .segbtn{ border-left: 1px solid var(--grid-strong); }
+  .segbtn.active{ background: var(--amber); color: var(--bg); }
+  .segbtn:focus-visible{ outline: 2px solid var(--line-bright); outline-offset: -2px; }
+
+  .controls-row2{
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    padding: 0 22px 20px;
+    border-bottom: 1px solid var(--grid-strong);
+  }
+  button.linklike{
+    background:none; border:none; padding:0;
+    color: var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  button.linklike:hover{ color: var(--line-bright); }
+
+  .field.wide{ grid-column: 1 / -1; max-width: 420px; }
+
+  .trail{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+    padding: 16px 22px 0;
+  }
+  .trail-pills{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+  }
+  .trail-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    border: 1px solid var(--ok-border);
+    background: var(--panel-2);
+    color: var(--ink);
+    font-size: 11px;
+    padding: 6px 10px;
+    letter-spacing: 0.02em;
+  }
+  .trail-pill .k{ color: var(--ink-dim); }
+  .trail-arrow{ color: var(--grid-strong); font-size: 12px; }
+  .startover{
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--grid-strong);
+    color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .startover:hover{ color: var(--err); border-color: var(--err); }
+
+  .step{ animation: stepin 0.22s ease; }
+  @keyframes stepin{
+    from{ opacity: 0; transform: translateY(4px); }
+    to{ opacity: 1; transform: translateY(0); }
+  }
+
+  /* Drawing */
+  .drawing-wrap{
+    padding: 10px 22px 6px;
+  }
+  #map{
+    width:100%; height: 460px;
+    border: 1px solid var(--grid-strong);
+    background: var(--panel-2);
+  }
+  /* Leaflet chrome re-themed to match the blueprint palette */
+  .leaflet-control-attribution{
+    background: rgba(12,26,38,0.75) !important;
+    color: var(--ink-dim) !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 9.5px !important;
+  }
+  .leaflet-control-attribution a{ color: var(--line) !important; }
+  .leaflet-control-zoom a{
+    background: var(--panel-2) !important;
+    color: var(--ink) !important;
+    border-color: var(--grid-strong) !important;
+  }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip{
+    background: var(--panel-2) !important;
+    color: var(--ink) !important;
+  }
+  .leaflet-popup-content{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+  }
+  .marker-dw{
+    width:10px; height:10px; border-radius:50%;
+    background: var(--amber); border: 1.5px solid var(--bg);
+  }
+  .marker-pk{
+    width:10px; height:10px; transform: rotate(45deg);
+    background: var(--rose); border: 1.5px solid var(--bg);
+  }
+  .marker-dim{ opacity: 0.35; }
+
+  .drawing-caption{
+    display:flex; justify-content: space-between;
+    font-size: 10.5px; color: var(--ink-dim);
+    padding: 0 22px 18px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Results */
+  .results{
+    border-top: 1px solid var(--grid-strong);
+    padding: 20px 22px 22px;
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--grid-strong);
+  }
+  @media (max-width: 720px){ .results{ grid-template-columns: repeat(2,1fr);} }
+  .stat{
+    background: var(--panel);
+    padding: 16px 16px 14px;
+  }
+  .stat .n{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--line-bright);
+    line-height: 1;
+  }
+  .stat.driveway .n{ color: var(--amber); }
+  .stat.parking .n{ color: var(--rose); }
+  .stat .lbl{
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    margin-top: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .footer{
+    border-top: 1px solid var(--grid-strong);
+    padding: 14px 22px 18px;
+    font-size: 10.5px;
+    color: #4d6a80;
+    line-height: 1.7;
+  }
+  .footer a{ color: var(--line); }
+  .legend-row{
+    display:flex; gap: 18px; flex-wrap:wrap;
+    margin-bottom: 8px;
+    color: var(--ink-dim);
+    font-size: 11px;
+  }
+  .legend-row span{ display:inline-flex; align-items:center; gap:6px; }
+  .swatch{ width:10px; height:10px; display:inline-block; flex:none; }
+  .swatch.dw{ background: var(--amber); border-radius:50%; }
+  .swatch.pk{ background: var(--rose); transform: rotate(45deg); }
+  .swatch.line{ width:16px; height:2px; background: var(--highlight); }
+
+  .err{
+    color: var(--err);
+    font-size: 11px;
+    margin-top: 6px;
+    display:none;
+  }
+  .err.show{ display:block; }
+
+  .coverage-note{
+    margin: 0 22px 16px;
+    padding: 9px 12px;
+    border: 1px dashed var(--amber);
+    color: var(--amber);
+    font-size: 11px;
+    line-height: 1.5;
+    display: none;
+  }
+  .coverage-note.show{ display:block; }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <div class="titleblock">
+    <div>
+      <div class="eyebrow">COLLEGE RD CORRIDOR ACCESS SURVEY</div>
+      <h1>Do you live or work on College Road?</h1>
+      <div class="sub">See how many driveways and access points you pass on your daily commute.</div>
+    </div>
+  </div>
+
+  <div class="trail" id="answerTrail" style="display:none;">
+    <div class="trail-pills" id="trailPills"></div>
+    <button class="startover" id="startOverBtn" type="button">START OVER</button>
+  </div>
+
+  <div class="controls step" id="stepAddress">
+    <div class="field wide">
+      <label for="commuteAddr">WHAT'S YOUR ADDRESS ON COLLEGE RD?</label>
+      <div class="inputwrap"><span>#</span><input id="commuteAddr" inputmode="numeric" placeholder="e.g. 3200"></div>
+      <div class="hint" id="commuteHint">&nbsp;</div>
+    </div>
+  </div>
+  <div class="controls-row2" id="addressRow2">
+    <button class="plot" id="addressNextBtn">NEXT ›</button>
+    <button class="linklike" id="toCompareLink" type="button">Comparing two addresses instead? ›</button>
+  </div>
+
+  <div class="controls step" id="stepHomeWork" style="display:none;">
+    <div class="field wide">
+      <label>THIS IS MY</label>
+      <div class="seg" id="hwToggle">
+        <button type="button" class="segbtn" data-val="home">HOME</button>
+        <button type="button" class="segbtn" data-val="work">WORK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls step" id="stepDirection" style="display:none;">
+    <div class="field wide">
+      <label id="dirLabel">From home, I head...</label>
+      <div class="seg" id="dirToggle">
+        <button type="button" class="segbtn" data-val="east">EAST</button>
+        <button type="button" class="segbtn" data-val="west">WEST</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" id="compareControls" style="display:none;">
+    <div class="field">
+      <label for="fromAddr">FROM — COLLEGE RD ADDRESS</label>
+      <div class="inputwrap"><span>#</span><input id="fromAddr" inputmode="numeric" placeholder="e.g. 807" value="807"></div>
+      <div class="hint" id="fromHint">&nbsp;</div>
+    </div>
+    <div class="field">
+      <label for="toAddr">TO — COLLEGE RD ADDRESS</label>
+      <div class="inputwrap"><span>#</span><input id="toAddr" inputmode="numeric" placeholder="e.g. 3453" value="3453"></div>
+      <div class="hint" id="toHint">&nbsp;</div>
+    </div>
+    <button class="plot" id="plotBtn">PLOT ROUTE</button>
+  </div>
+  <div class="controls-row2" id="toCommuteRow" style="display:none;">
+    <button class="linklike" id="toCommuteLink" type="button">‹ Just one address? Use commute mode</button>
+  </div>
+
+  <div id="resultsSection" style="display:none;">
+  <div class="drawing-wrap">
+    <div id="map"></div>
+  </div>
+  <div class="drawing-caption">
+    <span>Live OpenStreetMap basemap. \u00A9 <a href="https://www.openstreetmap.org/copyright" style="color:inherit;" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</span>
+    <span id="distCaption">—</span>
+  </div>
+  <div class="coverage-note" id="coverageNote"></div>
+
+  <div class="results">
+    <div class="stat driveway">
+      <div class="n" id="statDriveway">—</div>
+      <div class="lbl">DRIVEWAYS PASSED</div>
+    </div>
+    <div class="stat parking">
+      <div class="n" id="statParking">—</div>
+      <div class="lbl">PARKING LOT ENTRANCES</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="statTotal">—</div>
+      <div class="lbl">TOTAL ACCESS POINTS</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="statDist">—</div>
+      <div class="lbl">DISTANCE (MILES)</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="footer">
+    <div class="legend-row">
+      <span><i class="swatch dw"></i> driveway</span>
+      <span><i class="swatch pk"></i> parking lot entrance</span>
+      <span><i class="swatch line"></i> route between FROM / TO</span>
+    </div>
+    Access-point locations digitized from a College Road corridor field inventory (unvalidated — driveway vs. parking-lot classification not field-confirmed). Address positions from Fairbanks North Star Borough Valid Address Points. Addresses are matched to the nearest surveyed point and interpolated along the corridor where no exact match exists — this is a schematic estimate, not a survey-grade measurement.
+  </div>
+</div>
+
+<script>
+const DATA = {"centerline":[{"lon":-147.813809,"lat":64.855663,"pos":0.0},{"lon":-147.812798,"lat":64.855686,"pos":47.8},{"lon":-147.811788,"lat":64.855805,"pos":97.4},{"lon":-147.810777,"lat":64.85587,"pos":145.7},{"lon":-147.809766,"lat":64.855885,"pos":193.4},{"lon":-147.808756,"lat":64.856033,"pos":243.9},{"lon":-147.807745,"lat":64.856224,"pos":296.2},{"lon":-147.806735,"lat":64.85628,"pos":344.4},{"lon":-147.805724,"lat":64.856422,"pos":394.6},{"lon":-147.804714,"lat":64.856535,"pos":444.0},{"lon":-147.803703,"lat":64.856761,"pos":497.9},{"lon":-147.802692,"lat":64.856963,"pos":550.7},{"lon":-147.801682,"lat":64.857144,"pos":602.6},{"lon":-147.800671,"lat":64.857337,"pos":654.9},{"lon":-147.799661,"lat":64.857681,"pos":716.0},{"lon":-147.79865,"lat":64.857914,"pos":770.4},{"lon":-147.797639,"lat":64.858081,"pos":821.6},{"lon":-147.796629,"lat":64.858364,"pos":878.8},{"lon":-147.795618,"lat":64.858593,"pos":932.9},{"lon":-147.794608,"lat":64.858991,"pos":998.0},{"lon":-147.793597,"lat":64.859343,"pos":1059.7},{"lon":-147.792586,"lat":64.859664,"pos":1119.3},{"lon":-147.790565,"lat":64.860004,"pos":1222.0},{"lon":-147.789555,"lat":64.860368,"pos":1284.7},{"lon":-147.787534,"lat":64.860725,"pos":1388.1},{"lon":-147.786523,"lat":64.861082,"pos":1450.1},{"lon":-147.785512,"lat":64.861388,"pos":1508.7},{"lon":-147.784502,"lat":64.861705,"pos":1568.1},{"lon":-147.783491,"lat":64.861946,"pos":1622.8},{"lon":-147.782481,"lat":64.862224,"pos":1679.7},{"lon":-147.78147,"lat":64.862639,"pos":1746.1},{"lon":-147.780459,"lat":64.862782,"pos":1796.4},{"lon":-147.779449,"lat":64.86314,"pos":1858.5},{"lon":-147.778438,"lat":64.863267,"pos":1908.3},{"lon":-147.777428,"lat":64.863394,"pos":1958.1},{"lon":-147.776417,"lat":64.863546,"pos":2008.7},{"lon":-147.775406,"lat":64.863819,"pos":2065.3},{"lon":-147.774396,"lat":64.863781,"pos":2113.2},{"lon":-147.773385,"lat":64.863984,"pos":2166.0},{"lon":-147.772375,"lat":64.864027,"pos":2213.9},{"lon":-147.771364,"lat":64.864126,"pos":2262.9},{"lon":-147.770354,"lat":64.864143,"pos":2310.7},{"lon":-147.769343,"lat":64.864199,"pos":2358.8},{"lon":-147.768332,"lat":64.864156,"pos":2406.8},{"lon":-147.767322,"lat":64.86419,"pos":2454.7},{"lon":-147.766311,"lat":64.864115,"pos":2503.2},{"lon":-147.765301,"lat":64.864055,"pos":2551.3},{"lon":-147.76429,"lat":64.863939,"pos":2600.8},{"lon":-147.763279,"lat":64.863954,"pos":2648.6},{"lon":-147.762269,"lat":64.863839,"pos":2697.9},{"lon":-147.761258,"lat":64.863714,"pos":2747.7},{"lon":-147.760248,"lat":64.8637,"pos":2795.4},{"lon":-147.759237,"lat":64.863431,"pos":2851.8},{"lon":-147.758227,"lat":64.863309,"pos":2901.4},{"lon":-147.757216,"lat":64.863133,"pos":2953.0},{"lon":-147.756205,"lat":64.862904,"pos":3007.1},{"lon":-147.755195,"lat":64.862676,"pos":3061.1},{"lon":-147.754184,"lat":64.862516,"pos":3112.1},{"lon":-147.753174,"lat":64.862188,"pos":3172.1},{"lon":-147.752163,"lat":64.862098,"pos":3220.9},{"lon":-147.751152,"lat":64.86202,"pos":3269.4},{"lon":-147.750142,"lat":64.861957,"pos":3317.7},{"lon":-147.749131,"lat":64.861841,"pos":3367.1},{"lon":-147.748121,"lat":64.861763,"pos":3415.7},{"lon":-147.74711,"lat":64.861665,"pos":3464.6},{"lon":-147.746099,"lat":64.861593,"pos":3513.0},{"lon":-147.745089,"lat":64.861474,"pos":3562.6},{"lon":-147.744078,"lat":64.861175,"pos":3620.7},{"lon":-147.743068,"lat":64.861052,"pos":3670.4},{"lon":-147.742057,"lat":64.860807,"pos":3725.3},{"lon":-147.741047,"lat":64.860636,"pos":3776.7},{"lon":-147.740036,"lat":64.860344,"pos":3834.5},{"lon":-147.738015,"lat":64.860157,"pos":3932.2},{"lon":-147.737004,"lat":64.859973,"pos":3984.1},{"lon":-147.735994,"lat":64.859849,"pos":4033.8},{"lon":-147.734983,"lat":64.85964,"pos":4086.9},{"lon":-147.733972,"lat":64.859619,"pos":4134.7},{"lon":-147.732962,"lat":64.859548,"pos":4183.1},{"lon":-147.731951,"lat":64.859476,"pos":4231.5},{"lon":-147.730941,"lat":64.85943,"pos":4279.5},{"lon":-147.72993,"lat":64.859339,"pos":4328.3},{"lon":-147.728919,"lat":64.859314,"pos":4376.1},{"lon":-147.727909,"lat":64.859231,"pos":4424.8},{"lon":-147.726898,"lat":64.859178,"pos":4472.9},{"lon":-147.725888,"lat":64.859114,"pos":4521.1},{"lon":-147.724877,"lat":64.859117,"pos":4568.9},{"lon":-147.723867,"lat":64.859076,"pos":4616.8},{"lon":-147.722972,"lat":64.858955,"pos":4661.2},{"lon":-147.721977,"lat":64.858893,"pos":4708.7},{"lon":-147.721103,"lat":64.858832,"pos":4750.5},{"lon":-147.719995,"lat":64.858796,"pos":4803.0},{"lon":-147.719571,"lat":64.858763,"pos":4823.4},{"lon":-147.718528,"lat":64.858599,"pos":4875.9},{"lon":-147.717532,"lat":64.85834,"pos":4931.1},{"lon":-147.71628,"lat":64.857689,"pos":5024.6},{"lon":-147.716178,"lat":64.855834,"pos":5230.9},{"lon":-147.715809,"lat":64.854738,"pos":5354.0},{"lon":-147.715089,"lat":64.853659,"pos":5478.7},{"lon":-147.714152,"lat":64.85332,"pos":5536.9},{"lon":-147.713682,"lat":64.853001,"pos":5578.7},{"lon":-147.713179,"lat":64.852729,"pos":5617.1},{"lon":-147.71285,"lat":64.854876,"pos":5856.3},{"lon":-147.712587,"lat":64.852376,"pos":6134.6},{"lon":-147.712108,"lat":64.853811,"pos":6295.7},{"lon":-147.711181,"lat":64.853163,"pos":6379.9},{"lon":-147.710445,"lat":64.85294,"pos":6422.6},{"lon":-147.70836,"lat":64.852869,"pos":6521.5},{"lon":-147.706309,"lat":64.850998,"pos":6750.9},{"lon":-147.706024,"lat":64.851814,"pos":6842.7},{"lon":-147.7052,"lat":64.850502,"pos":6993.7},{"lon":-147.704505,"lat":64.851401,"pos":7098.9},{"lon":-147.703793,"lat":64.852124,"pos":7186.0},{"lon":-147.703172,"lat":64.850896,"pos":7325.6},{"lon":-147.703138,"lat":64.849837,"pos":7443.4},{"lon":-147.702938,"lat":64.85199,"pos":7683.0},{"lon":-147.70205,"lat":64.8507,"pos":7832.5},{"lon":-147.701356,"lat":64.851524,"pos":7929.8},{"lon":-147.700437,"lat":64.850552,"pos":8046.3},{"lon":-147.69961,"lat":64.851113,"pos":8119.8},{"lon":-147.695398,"lat":64.848681,"pos":8455.6}],"total_length_m":8455.6,"driveways":[{"type":"parking_lot","lon":-147.811618,"lat":64.855755,"pos":104.5},{"type":"parking_lot","lon":-147.81115,"lat":64.856107,"pos":132.1},{"type":"parking_lot","lon":-147.810384,"lat":64.855927,"pos":164.4},{"type":"driveway","lon":-147.810368,"lat":64.856177,"pos":166.2},{"type":"parking_lot","lon":-147.809424,"lat":64.856097,"pos":216.4},{"type":"driveway","lon":-147.809522,"lat":64.856286,"pos":218.8},{"type":"driveway","lon":-147.809036,"lat":64.856331,"pos":242.1},{"type":"parking_lot","lon":-147.807756,"lat":64.856479,"pos":299.3},{"type":"driveway","lon":-147.807039,"lat":64.856535,"pos":333.7},{"type":"driveway","lon":-147.806659,"lat":64.856574,"pos":357.8},{"type":"parking_lot","lon":-147.80642,"lat":64.856434,"pos":363.8},{"type":"parking_lot","lon":-147.806453,"lat":64.856596,"pos":367.9},{"type":"driveway","lon":-147.804281,"lat":64.856616,"pos":466.3},{"type":"parking_lot","lon":-147.804119,"lat":64.856789,"pos":481.9},{"type":"driveway","lon":-147.803219,"lat":64.856745,"pos":518.0},{"type":"parking_lot","lon":-147.803102,"lat":64.856927,"pos":531.5},{"type":"driveway","lon":-147.802565,"lat":64.856852,"pos":551.5},{"type":"parking_lot","lon":-147.802289,"lat":64.857091,"pos":573.8},{"type":"driveway","lon":-147.802006,"lat":64.857166,"pos":589.3},{"type":"driveway","lon":-147.801299,"lat":64.857349,"pos":628.3},{"type":"parking_lot","lon":-147.800227,"lat":64.857451,"pos":679.2},{"type":"driveway","lon":-147.799336,"lat":64.857878,"pos":739.9},{"type":"driveway","lon":-147.798974,"lat":64.85796,"pos":759.3},{"type":"parking_lot","lon":-147.798564,"lat":64.857872,"pos":772.5},{"type":"parking_lot","lon":-147.797389,"lat":64.858201,"pos":838.8},{"type":"driveway","lon":-147.797213,"lat":64.858444,"pos":860.5},{"type":"parking_lot","lon":-147.796416,"lat":64.858445,"pos":891.9},{"type":"driveway","lon":-147.793788,"lat":64.859353,"pos":1053.4},{"type":"parking_lot","lon":-147.793462,"lat":64.859233,"pos":1057.0},{"type":"driveway","lon":-147.793058,"lat":64.859547,"pos":1093.7},{"type":"driveway","lon":-147.791383,"lat":64.859795,"pos":1177.6},{"type":"driveway","lon":-147.790945,"lat":64.859907,"pos":1201.4},{"type":"driveway","lon":-147.78862,"lat":64.860734,"pos":1340.9},{"type":"driveway","lon":-147.785049,"lat":64.861478,"pos":1532.4},{"type":"driveway","lon":-147.784618,"lat":64.861598,"pos":1556.6},{"type":"driveway","lon":-147.784195,"lat":64.86171,"pos":1581.0},{"type":"parking_lot","lon":-147.783445,"lat":64.861897,"pos":1622.1},{"type":"parking_lot","lon":-147.782838,"lat":64.862059,"pos":1655.6},{"type":"driveway","lon":-147.782294,"lat":64.862213,"pos":1685.2},{"type":"driveway","lon":-147.781512,"lat":64.862425,"pos":1728.3},{"type":"driveway","lon":-147.778946,"lat":64.863223,"pos":1883.9},{"type":"driveway","lon":-147.762929,"lat":64.864061,"pos":2661.5},{"type":"driveway","lon":-147.762342,"lat":64.864006,"pos":2689.9},{"type":"parking_lot","lon":-147.760929,"lat":64.863653,"pos":2763.5},{"type":"parking_lot","lon":-147.760166,"lat":64.863549,"pos":2807.5},{"type":"parking_lot","lon":-147.759786,"lat":64.863478,"pos":2827.0},{"type":"parking_lot","lon":-147.758273,"lat":64.86323,"pos":2902.7},{"type":"driveway","lon":-147.757814,"lat":64.863147,"pos":2926.2},{"type":"driveway","lon":-147.757293,"lat":64.863064,"pos":2952.5},{"type":"driveway","lon":-147.756772,"lat":64.862955,"pos":2980.8},{"type":"driveway","lon":-147.756401,"lat":64.8629,"pos":2999.1},{"type":"driveway","lon":-147.75479,"lat":64.862786,"pos":3074.9},{"type":"driveway","lon":-147.754714,"lat":64.862589,"pos":3085.8},{"type":"driveway","lon":-147.754077,"lat":64.862491,"pos":3117.8},{"type":"driveway","lon":-147.753648,"lat":64.862416,"pos":3139.0},{"type":"driveway","lon":-147.753291,"lat":64.862502,"pos":3146.7},{"type":"driveway","lon":-147.752938,"lat":64.86244,"pos":3164.2},{"type":"driveway","lon":-147.752917,"lat":64.862271,"pos":3182.1},{"type":"driveway","lon":-147.75231,"lat":64.862329,"pos":3208.9},{"type":"parking_lot","lon":-147.749742,"lat":64.861842,"pos":3339.2},{"type":"parking_lot","lon":-147.735416,"lat":64.859944,"pos":4053.9},{"type":"driveway","lon":-147.735104,"lat":64.859702,"pos":4078.8},{"type":"driveway","lon":-147.733634,"lat":64.859709,"pos":4148.9},{"type":"driveway","lon":-147.733299,"lat":64.859495,"pos":4168.3},{"type":"driveway","lon":-147.732666,"lat":64.859611,"pos":4195.8},{"type":"driveway","lon":-147.732447,"lat":64.859604,"pos":4206.1},{"type":"driveway","lon":-147.731616,"lat":64.859555,"pos":4246.3},{"type":"parking_lot","lon":-147.731003,"lat":64.859365,"pos":4277.3},{"type":"driveway","lon":-147.73065,"lat":64.859508,"pos":4291.2},{"type":"driveway","lon":-147.729467,"lat":64.859272,"pos":4350.6},{"type":"driveway","lon":-147.729257,"lat":64.859433,"pos":4359.5},{"type":"driveway","lon":-147.72894,"lat":64.859416,"pos":4374.5},{"type":"parking_lot","lon":-147.727526,"lat":64.85918,"pos":4443.4},{"type":"driveway","lon":-147.727205,"lat":64.859326,"pos":4456.5},{"type":"driveway","lon":-147.726955,"lat":64.859319,"pos":4468.3},{"type":"driveway","lon":-147.726707,"lat":64.859143,"pos":4482.4},{"type":"driveway","lon":-147.72645,"lat":64.85914,"pos":4494.5},{"type":"driveway","lon":-147.725261,"lat":64.85924,"pos":4550.8},{"type":"parking_lot","lon":-147.722972,"lat":64.858955,"pos":4661.2},{"type":"parking_lot","lon":-147.721977,"lat":64.858893,"pos":4708.7},{"type":"parking_lot","lon":-147.721103,"lat":64.858832,"pos":4750.5},{"type":"parking_lot","lon":-147.719995,"lat":64.858796,"pos":4803.0},{"type":"parking_lot","lon":-147.719571,"lat":64.858763,"pos":4823.4},{"type":"parking_lot","lon":-147.718528,"lat":64.858599,"pos":4875.9},{"type":"parking_lot","lon":-147.717532,"lat":64.85834,"pos":4931.1},{"type":"parking_lot","lon":-147.71628,"lat":64.857689,"pos":5024.6}],"addresses":[{"addr":4,"lon":-147.695398,"lat":64.848681,"pos":8455.6},{"addr":19,"lon":-147.703138,"lat":64.849837,"pos":7443.4},{"addr":20,"lon":-147.700437,"lat":64.850552,"pos":8046.3},{"addr":24,"lon":-147.69961,"lat":64.851113,"pos":8119.8},{"addr":29,"lon":-147.7052,"lat":64.850502,"pos":6993.7},{"addr":30,"lon":-147.701356,"lat":64.851524,"pos":7929.8},{"addr":32,"lon":-147.702938,"lat":64.85199,"pos":7683.0},{"addr":33,"lon":-147.706309,"lat":64.850998,"pos":6750.9},{"addr":34,"lon":-147.703793,"lat":64.852124,"pos":7186.0},{"addr":36,"lon":-147.704505,"lat":64.851401,"pos":7098.9},{"addr":38,"lon":-147.703172,"lat":64.850896,"pos":7325.6},{"addr":40,"lon":-147.70205,"lat":64.8507,"pos":7832.5},{"addr":44,"lon":-147.706024,"lat":64.851814,"pos":6842.7},{"addr":48,"lon":-147.70836,"lat":64.852869,"pos":6521.5},{"addr":54,"lon":-147.710445,"lat":64.85294,"pos":6422.6},{"addr":58,"lon":-147.711181,"lat":64.853163,"pos":6379.9},{"addr":59,"lon":-147.712587,"lat":64.852376,"pos":6134.6},{"addr":60,"lon":-147.712108,"lat":64.853811,"pos":6295.7},{"addr":62,"lon":-147.71285,"lat":64.854876,"pos":5856.3},{"addr":69,"lon":-147.713179,"lat":64.852729,"pos":5617.1},{"addr":87,"lon":-147.713682,"lat":64.853001,"pos":5578.7},{"addr":89,"lon":-147.714152,"lat":64.85332,"pos":5536.9},{"addr":99,"lon":-147.715089,"lat":64.853659,"pos":5478.7},{"addr":101,"lon":-147.715809,"lat":64.854738,"pos":5354.0},{"addr":209,"lon":-147.716178,"lat":64.855834,"pos":5230.9},{"addr":255,"lon":-147.716598,"lat":64.857172,"pos":5081.7},{"addr":261,"lon":-147.716509,"lat":64.857423,"pos":5053.9},{"addr":267,"lon":-147.716962,"lat":64.857649,"pos":5007.5},{"addr":400,"lon":-147.716923,"lat":64.858453,"pos":4939.8},{"addr":401,"lon":-147.717034,"lat":64.857839,"pos":4989.0},{"addr":405,"lon":-147.7176,"lat":64.858123,"pos":4947.6},{"addr":409,"lon":-147.718142,"lat":64.858386,"pos":4903.8},{"addr":420,"lon":-147.717987,"lat":64.858752,"pos":4889.0},{"addr":504,"lon":-147.71892,"lat":64.85892,"pos":4846.3},{"addr":601,"lon":-147.720272,"lat":64.85874,"pos":4790.4},{"addr":610,"lon":-147.721596,"lat":64.859197,"pos":4721.1},{"addr":612,"lon":-147.722019,"lat":64.859128,"pos":4703.0},{"addr":701,"lon":-147.722759,"lat":64.858771,"pos":4674.1},{"addr":720,"lon":-147.722961,"lat":64.859206,"pos":4653.3},{"addr":724,"lon":-147.723857,"lat":64.859241,"pos":4615.6},{"addr":807,"lon":-147.725556,"lat":64.858843,"pos":4536.6},{"addr":809,"lon":-147.72592,"lat":64.85888,"pos":4521.1},{"addr":810,"lon":-147.725975,"lat":64.859298,"pos":4514.1},{"addr":815,"lon":-147.726388,"lat":64.858921,"pos":4500.9},{"addr":825,"lon":-147.726976,"lat":64.859024,"pos":4471.3},{"addr":830,"lon":-147.726667,"lat":64.859388,"pos":4480.3},{"addr":840,"lon":-147.727399,"lat":64.859588,"pos":4443.9},{"addr":845,"lon":-147.727476,"lat":64.859049,"pos":4447.5},{"addr":847,"lon":-147.7277,"lat":64.858968,"pos":4438.1},{"addr":849,"lon":-147.727917,"lat":64.858984,"pos":4427.7},{"addr":910,"lon":-147.728621,"lat":64.859504,"pos":4386.0},{"addr":912,"lon":-147.728966,"lat":64.859514,"pos":4372.7},{"addr":913,"lon":-147.728865,"lat":64.858982,"pos":4385.6},{"addr":914,"lon":-147.72923,"lat":64.859738,"pos":4358.9},{"addr":915,"lon":-147.729752,"lat":64.859258,"pos":4337.2},{"addr":918,"lon":-147.729725,"lat":64.859529,"pos":4336.8},{"addr":1001,"lon":-147.730705,"lat":64.859161,"pos":4296.5},{"addr":1010,"lon":-147.731834,"lat":64.859697,"pos":4234.4},{"addr":1018,"lon":-147.733183,"lat":64.859749,"pos":4169.2},{"addr":1019,"lon":-147.733112,"lat":64.859412,"pos":4178.5},{"addr":1103,"lon":-147.734888,"lat":64.859517,"pos":4092.1},{"addr":1198,"lon":-147.736207,"lat":64.860026,"pos":4018.7},{"addr":1201,"lon":-147.737245,"lat":64.859693,"pos":3984.1},{"addr":1300,"lon":-147.740965,"lat":64.861795,"pos":3716.4},{"addr":1480,"lon":-147.749888,"lat":64.864392,"pos":3291.0},{"addr":1501,"lon":-147.750229,"lat":64.86119,"pos":3335.7},{"addr":1595,"lon":-147.751662,"lat":64.861658,"pos":3252.9},{"addr":1600,"lon":-147.751826,"lat":64.86246,"pos":3229.4},{"addr":1603,"lon":-147.752609,"lat":64.862035,"pos":3201.7},{"addr":1604,"lon":-147.752781,"lat":64.862699,"pos":3152.8},{"addr":1608,"lon":-147.752368,"lat":64.862993,"pos":3148.7},{"addr":1616,"lon":-147.753041,"lat":64.863389,"pos":3112.1},{"addr":1625,"lon":-147.753477,"lat":64.862208,"pos":3159.4},{"addr":1637,"lon":-147.754013,"lat":64.862189,"pos":3140.4},{"addr":1651,"lon":-147.754849,"lat":64.862442,"pos":3085.4},{"addr":1652,"lon":-147.754293,"lat":64.86314,"pos":3083.4},{"addr":1715,"lon":-147.756469,"lat":64.862646,"pos":3009.4},{"addr":1717,"lon":-147.756867,"lat":64.86275,"pos":2987.4},{"addr":1741,"lon":-147.757529,"lat":64.862914,"pos":2948.5},{"addr":1751,"lon":-147.758098,"lat":64.862836,"pos":2926.8},{"addr":1753,"lon":-147.758204,"lat":64.862851,"pos":2921.6},{"addr":1771,"lon":-147.75837,"lat":64.863078,"pos":2904.8},{"addr":1773,"lon":-147.758847,"lat":64.863074,"pos":2880.2},{"addr":1800,"lon":-147.755195,"lat":64.86505,"pos":2953.0},{"addr":1817,"lon":-147.760502,"lat":64.863364,"pos":2784.6},{"addr":1986,"lon":-147.762268,"lat":64.86431,"pos":2684.7},{"addr":2016,"lon":-147.763132,"lat":64.864755,"pos":2648.6},{"addr":2030,"lon":-147.765343,"lat":64.864241,"pos":2546.5},{"addr":2400,"lon":-147.775104,"lat":64.864051,"pos":2077.3},{"addr":2401,"lon":-147.776574,"lat":64.8631,"pos":1985.4},{"addr":2594,"lon":-147.780617,"lat":64.863075,"pos":1811.4},{"addr":2600,"lon":-147.782424,"lat":64.86339,"pos":1746.1},{"addr":2755,"lon":-147.78241,"lat":64.86143,"pos":1634.9},{"addr":2757,"lon":-147.782067,"lat":64.861787,"pos":1670.0},{"addr":2759,"lon":-147.783439,"lat":64.861481,"pos":1599.9},{"addr":2775,"lon":-147.784316,"lat":64.861341,"pos":1551.4},{"addr":2801,"lon":-147.78497,"lat":64.860989,"pos":1504.2},{"addr":2846,"lon":-147.786204,"lat":64.861141,"pos":1466.2},{"addr":2892,"lon":-147.787755,"lat":64.86098,"pos":1397.9},{"addr":2920,"lon":-147.790397,"lat":64.861646,"pos":1301.7},{"addr":3055,"lon":-147.790956,"lat":64.859693,"pos":1192.3},{"addr":3065,"lon":-147.791579,"lat":64.859462,"pos":1155.5},{"addr":3120,"lon":-147.793387,"lat":64.859831,"pos":1099.9},{"addr":3130,"lon":-147.793832,"lat":64.859775,"pos":1079.3},{"addr":3137,"lon":-147.792856,"lat":64.859177,"pos":1077.0},{"addr":3140,"lon":-147.793947,"lat":64.85967,"pos":1068.0},{"addr":3150,"lon":-147.794681,"lat":64.85964,"pos":1040.7},{"addr":3155,"lon":-147.79763,"lat":64.857739,"pos":808.4},{"addr":3160,"lon":-147.795192,"lat":64.859424,"pos":1006.8},{"addr":3170,"lon":-147.795357,"lat":64.859055,"pos":976.6},{"addr":3175,"lon":-147.794727,"lat":64.858811,"pos":980.3},{"addr":3195,"lon":-147.79604,"lat":64.858144,"pos":892.0},{"addr":3210,"lon":-147.798166,"lat":64.858578,"pos":830.9},{"addr":3215,"lon":-147.796322,"lat":64.857695,"pos":850.4},{"addr":3220,"lon":-147.798272,"lat":64.858247,"pos":800.3},{"addr":3235,"lon":-147.796934,"lat":64.857358,"pos":821.6},{"addr":3245,"lon":-147.797713,"lat":64.857711,"pos":803.6},{"addr":3260,"lon":-147.799429,"lat":64.858083,"pos":746.8},{"addr":3292,"lon":-147.800158,"lat":64.857961,"pos":716.0},{"addr":3295,"lon":-147.799596,"lat":64.857233,"pos":687.6},{"addr":3299,"lon":-147.800291,"lat":64.856427,"pos":630.4},{"addr":3300,"lon":-147.80169,"lat":64.857529,"pos":619.5},{"addr":3343,"lon":-147.802711,"lat":64.856155,"pos":512.0},{"addr":3352,"lon":-147.803596,"lat":64.857113,"pos":519.0},{"addr":3354,"lon":-147.803593,"lat":64.85714,"pos":520.4},{"addr":3374,"lon":-147.804386,"lat":64.856909,"pos":476.9},{"addr":3375,"lon":-147.804445,"lat":64.856449,"pos":450.8},{"addr":3410,"lon":-147.804744,"lat":64.856878,"pos":460.3},{"addr":3412,"lon":-147.805191,"lat":64.856908,"pos":432.6},{"addr":3434,"lon":-147.80595,"lat":64.857041,"pos":401.5},{"addr":3451,"lon":-147.805857,"lat":64.856356,"pos":386.4},{"addr":3480,"lon":-147.806953,"lat":64.856667,"pos":339.7},{"addr":3500,"lon":-147.807568,"lat":64.856768,"pos":312.3},{"addr":3510,"lon":-147.808359,"lat":64.856774,"pos":294.2},{"addr":3525,"lon":-147.808329,"lat":64.856113,"pos":266.0},{"addr":3529,"lon":-147.809472,"lat":64.855785,"pos":203.0},{"addr":3535,"lon":-147.809781,"lat":64.855832,"pos":192.5},{"addr":3560,"lon":-147.810017,"lat":64.85648,"pos":203.5},{"addr":3677,"lon":-147.811374,"lat":64.855227,"pos":107.3},{"addr":3678,"lon":-147.811707,"lat":64.856147,"pos":106.7},{"addr":3679,"lon":-147.811853,"lat":64.855306,"pos":79.7}],"addr_min":4,"addr_max":3679,"survey_lo_pos":104.5,"survey_hi_pos":5024.6};
+
+// --- Leaflet live map setup ---
+const map = L.map('map', { scrollWheelZoom: true, zoomControl: true });
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+const corridorLatLngs = DATA.centerline.map(p=>[p.lat, p.lon]);
+map.fitBounds(L.latLngBounds(corridorLatLngs), {padding:[24,24]});
+
+const baseLayer = L.layerGroup().addTo(map);
+const markersLayer = L.layerGroup().addTo(map);
+const routeLayer = L.layerGroup().addTo(map);
+
+function lonAt(pos){
+  const cl = DATA.centerline;
+  if (pos<=cl[0].pos) return cl[0].lon;
+  if (pos>=cl[cl.length-1].pos) return cl[cl.length-1].lon;
+  for (let i=0;i<cl.length-1;i++){
+    if (cl[i].pos<=pos && pos<=cl[i+1].pos){
+      const frac = (pos-cl[i].pos)/((cl[i+1].pos-cl[i].pos)||1);
+      return cl[i].lon + frac*(cl[i+1].lon-cl[i].lon);
+    }
+  }
+  return cl[cl.length-1].lon;
+}
+function latAt(pos){
+  const cl = DATA.centerline;
+  if (pos<=cl[0].pos) return cl[0].lat;
+  if (pos>=cl[cl.length-1].pos) return cl[cl.length-1].lat;
+  for (let i=0;i<cl.length-1;i++){
+    if (cl[i].pos<=pos && pos<=cl[i+1].pos){
+      const frac = (pos-cl[i].pos)/((cl[i+1].pos-cl[i].pos)||1);
+      return cl[i].lat + frac*(cl[i+1].lat-cl[i].lat);
+    }
+  }
+  return cl[cl.length-1].lat;
+}
+
+// --- address lookup ---
+const addrsSorted = [...DATA.addresses].sort((a,b)=>a.addr-b.addr);
+
+function addressToPos(num){
+  const n = addrsSorted.length;
+  if (n === 0) return null;
+  if (num <= addrsSorted[0].addr){
+    return {pos: addrsSorted[0].pos, exact: num===addrsSorted[0].addr, extrapolated: num < addrsSorted[0].addr, nearest: addrsSorted[0].addr};
+  }
+  if (num >= addrsSorted[n-1].addr){
+    return {pos: addrsSorted[n-1].pos, exact: num===addrsSorted[n-1].addr, extrapolated: num > addrsSorted[n-1].addr, nearest: addrsSorted[n-1].addr};
+  }
+  for (let i=0;i<n-1;i++){
+    const a = addrsSorted[i], b = addrsSorted[i+1];
+    if (a.addr <= num && num <= b.addr){
+      if (a.addr === num) return {pos:a.pos, exact:true, extrapolated:false, nearest:a.addr};
+      if (b.addr === num) return {pos:b.pos, exact:true, extrapolated:false, nearest:b.addr};
+      const frac = (num - a.addr) / (b.addr - a.addr);
+      const pos = a.pos + frac*(b.pos - a.pos);
+      const nearest = (num - a.addr) < (b.addr - num) ? a.addr : b.addr;
+      return {pos, exact:false, extrapolated:false, nearest};
+    }
+  }
+  return null;
+}
+
+function drawBase(){
+  baseLayer.clearLayers();
+
+  const surveyLo = DATA.survey_lo_pos, surveyHi = DATA.survey_hi_pos;
+
+  // unsurveyed stretches: dashed muted line
+  if (surveyLo > 0){
+    const seg = DATA.centerline.filter(p=>p.pos<=surveyLo).map(p=>[p.lat,p.lon]);
+    seg.push([latAt(surveyLo), lonAt(surveyLo)]);
+    L.polyline(seg, {color:'#818282', weight:3, dashArray:'2,7', opacity:0.85}).addTo(baseLayer);
+  }
+  if (surveyHi < DATA.total_length_m){
+    const seg = DATA.centerline.filter(p=>p.pos>=surveyHi).map(p=>[p.lat,p.lon]);
+    seg.unshift([latAt(surveyHi), lonAt(surveyHi)]);
+    L.polyline(seg, {color:'#818282', weight:3, dashArray:'2,7', opacity:0.85}).addTo(baseLayer);
+  }
+
+  // surveyed core corridor line
+  const core = DATA.centerline.filter(p=>p.pos>=surveyLo && p.pos<=surveyHi).map(p=>[p.lat,p.lon]);
+  L.polyline(core, {color:'#3ec1cd', weight:3, opacity:0.95}).addTo(baseLayer);
+
+  // survey boundary markers
+  [surveyLo, surveyHi].forEach(pos=>{
+    if (pos<=0 || pos>=DATA.total_length_m) return;
+    L.circleMarker([latAt(pos), lonAt(pos)], {radius:5, color:'#fbd20b', weight:2, fillColor:'#0f6265', fillOpacity:1})
+      .bindTooltip('Edge of driveway/parking survey', {direction:'top'})
+      .addTo(baseLayer);
+  });
+}
+
+function drawMarkers(loPos, hiPos){
+  markersLayer.clearLayers();
+  DATA.driveways.forEach(d=>{
+    const inRange = d.pos>=loPos && d.pos<=hiPos;
+    const cls = d.type==='parking_lot' ? 'marker-pk' : 'marker-dw';
+    const icon = L.divIcon({className:'', html:`<div class="${cls}${inRange?'':' marker-dim'}"></div>`, iconSize:[10,10], iconAnchor:[5,5]});
+    L.marker([d.lat, d.lon], {icon})
+      .bindTooltip((d.type==='parking_lot'?'Parking lot entrance':'Driveway') + (inRange?' — in route':''), {direction:'top'})
+      .addTo(markersLayer);
+  });
+}
+
+function drawRoute(loPos, hiPos){
+  routeLayer.clearLayers();
+  const pts = DATA.centerline.filter(p=>p.pos>=loPos && p.pos<=hiPos).map(p=>[p.lat,p.lon]);
+  const clipped = [];
+  const allpts = DATA.centerline.filter(p=>p.pos>=loPos && p.pos<=hiPos);
+  if (allpts.length===0 || allpts[0].pos>loPos) clipped.push([latAt(loPos), lonAt(loPos)]);
+  clipped.push(...pts);
+  if (allpts.length===0 || allpts[allpts.length-1].pos<hiPos) clipped.push([latAt(hiPos), lonAt(hiPos)]);
+
+  L.polyline(clipped, {color:'#aed136', weight:5, opacity:0.95, lineCap:'round'}).addTo(routeLayer);
+  [loPos, hiPos].forEach(pos=>{
+    L.circleMarker([latAt(pos), lonAt(pos)], {radius:7, color:'#ffffff', weight:2.5, fillColor:'#0f6265', fillOpacity:1}).addTo(routeLayer);
+  });
+
+  if (clipped.length>1){
+    map.fitBounds(L.latLngBounds(clipped), {padding:[50,50], maxZoom:16});
+  }
+}
+
+function fmtMiles(m){ return (m/1609.34).toFixed(2); }
+
+function addrAtPos(pos){
+  // nearest known address to a given corridor position, for display text
+  let best = addrsSorted[0], bd = Infinity;
+  for (const a of addrsSorted){
+    const d = Math.abs(a.pos-pos);
+    if (d<bd){ bd=d; best=a; }
+  }
+  return best.addr;
+}
+
+function showResults(loPos, hiPos, captionText){
+  const found = DATA.driveways.filter(d=>d.pos>=loPos && d.pos<=hiPos);
+  const driveway = found.filter(d=>d.type==='driveway').length;
+  const parking = found.filter(d=>d.type==='parking_lot').length;
+
+  document.getElementById('statDriveway').textContent = driveway;
+  document.getElementById('statParking').textContent = parking;
+  document.getElementById('statTotal').textContent = found.length;
+  document.getElementById('statDist').textContent = fmtMiles(hiPos-loPos);
+  document.getElementById('distCaption').textContent = captionText;
+
+  const note = document.getElementById('coverageNote');
+  const uncoveredLo = Math.max(0, DATA.survey_lo_pos - loPos);
+  const uncoveredHi = Math.max(0, hiPos - DATA.survey_hi_pos);
+  const uncovered = uncoveredLo + uncoveredHi;
+  if (uncovered > 15){
+    note.className = 'coverage-note show';
+    note.textContent = `Driveway/parking survey covers roughly address ${addrAtPos(DATA.survey_hi_pos)}\u2013${addrAtPos(DATA.survey_lo_pos)} College Rd. About ${fmtMiles(uncovered)} mi of this route falls outside that surveyed stretch (shown hatched) and isn't counted above.`;
+  } else {
+    note.className = 'coverage-note';
+    note.textContent = '';
+  }
+
+  drawBase();
+  drawRoute(loPos, hiPos);
+  drawMarkers(loPos, hiPos);
+}
+
+function clearResults(msg){
+  document.getElementById('statDriveway').textContent='—';
+  document.getElementById('statParking').textContent='—';
+  document.getElementById('statTotal').textContent='—';
+  document.getElementById('statDist').textContent='—';
+  document.getElementById('distCaption').textContent = msg;
+  document.getElementById('coverageNote').className = 'coverage-note';
+  drawBase();
+}
+
+// --- compare mode (two addresses) ---
+function render(){
+  const fromEl = document.getElementById('fromAddr');
+  const toEl = document.getElementById('toAddr');
+  const fromHint = document.getElementById('fromHint');
+  const toHint = document.getElementById('toHint');
+
+  const fromNum = parseInt((fromEl.value.match(/\d+/)||[])[0], 10);
+  const toNum = parseInt((toEl.value.match(/\d+/)||[])[0], 10);
+
+  fromHint.className='hint'; toHint.className='hint';
+  fromHint.textContent = '\u00A0'; toHint.textContent='\u00A0';
+
+  if (isNaN(fromNum) || isNaN(toNum)){
+    clearResults('Enter a College Rd address number on each side.');
+    return;
+  }
+
+  const rA = addressToPos(fromNum);
+  const rB = addressToPos(toNum);
+
+  if (rA.extrapolated) { fromHint.textContent = `no address that low on College Rd — clamped to ${rA.nearest}`; fromHint.className='hint warn'; }
+  else if (!rA.exact) { fromHint.textContent = `no exact match — interpolated near ${rA.nearest}`; }
+
+  if (rB.extrapolated) { toHint.textContent = `no address that high on College Rd — clamped to ${rB.nearest}`; toHint.className='hint warn'; }
+  else if (!rB.exact) { toHint.textContent = `no exact match — interpolated near ${rB.nearest}`; }
+
+  const loPos = Math.min(rA.pos, rB.pos);
+  const hiPos = Math.max(rA.pos, rB.pos);
+  const found = DATA.driveways.filter(d=>d.pos>=loPos && d.pos<=hiPos);
+  showResults(loPos, hiPos, `${fromNum} \u2192 ${toNum} College Rd \u00B7 ${fmtMiles(hiPos-loPos)} mi \u00B7 ${found.length} access point${found.length===1?'':'s'}`);
+}
+
+// --- commute mode: step-by-step survey wizard ---
+let hwVal = null;
+let dirVal = null;
+let savedAddrNum = null;
+
+function setActive(container, val){
+  container.querySelectorAll('.segbtn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.val===val);
+  });
+}
+
+function updateDirLabel(){
+  document.getElementById('dirLabel').textContent = hwVal==='work' ? 'I commute from...' : 'From home, I head...';
+}
+
+function buildTrail(){
+  const trail = document.getElementById('answerTrail');
+  const pills = document.getElementById('trailPills');
+  pills.innerHTML = '';
+  const parts = [];
+  if (savedAddrNum !== null) parts.push(`<span class="trail-pill"><span class="k">ADDRESS</span> ${savedAddrNum} College Rd</span>`);
+  if (hwVal) parts.push(`<span class="trail-pill"><span class="k">THIS IS MY</span> ${hwVal.toUpperCase()}</span>`);
+  if (dirVal) parts.push(`<span class="trail-pill"><span class="k">${hwVal==='work'?'COMING FROM':'HEADING'}</span> ${dirVal.toUpperCase()}</span>`);
+  pills.innerHTML = parts.join('<span class="trail-arrow">\u203A</span>');
+  trail.style.display = parts.length ? 'flex' : 'none';
+}
+
+function submitAddress(){
+  const addrEl = document.getElementById('commuteAddr');
+  const hint = document.getElementById('commuteHint');
+  hint.className='hint'; hint.textContent='\u00A0';
+
+  const num = parseInt((addrEl.value.match(/\d+/)||[])[0], 10);
+  if (isNaN(num)){
+    hint.textContent = 'Enter your College Rd address number.';
+    hint.className = 'hint warn';
+    return;
+  }
+  const r = addressToPos(num);
+  if (r.extrapolated){
+    hint.textContent = `no address that ${num<r.nearest?'low':'high'} on College Rd — using ${r.nearest} instead`;
+    hint.className = 'hint warn';
+  }
+  savedAddrNum = num;
+  buildTrail();
+  document.getElementById('stepAddress').style.display='none';
+  document.getElementById('addressRow2').style.display='none';
+  document.getElementById('stepHomeWork').style.display='grid';
+}
+
+function selectHW(val){
+  hwVal = val;
+  setActive(document.getElementById('hwToggle'), hwVal);
+  updateDirLabel();
+  buildTrail();
+  document.getElementById('stepHomeWork').style.display='none';
+  document.getElementById('stepDirection').style.display='grid';
+}
+
+function selectDir(val){
+  dirVal = val;
+  setActive(document.getElementById('dirToggle'), dirVal);
+  buildTrail();
+  document.getElementById('stepDirection').style.display='none';
+  runCommuteResult();
+}
+
+function runCommuteResult(){
+  const r = addressToPos(savedAddrNum);
+  // direction points toward increasing pos = east, decreasing pos = west
+  const edgePos = dirVal==='east' ? DATA.total_length_m : 0;
+  const loPos = Math.min(r.pos, edgePos);
+  const hiPos = Math.max(r.pos, edgePos);
+  const found = DATA.driveways.filter(d=>d.pos>=loPos && d.pos<=hiPos);
+
+  const caption = hwVal==='work'
+    ? `${savedAddrNum} College Rd (work), coming from the ${dirVal} \u00B7 ${fmtMiles(hiPos-loPos)} mi \u00B7 ${found.length} access point${found.length===1?'':'s'}`
+    : `${savedAddrNum} College Rd (home), heading ${dirVal} \u00B7 ${fmtMiles(hiPos-loPos)} mi \u00B7 ${found.length} access point${found.length===1?'':'s'}`;
+
+  document.getElementById('resultsSection').style.display='block';
+  showResults(loPos, hiPos, caption);
+}
+
+function resetSurvey(){
+  savedAddrNum = null; hwVal = null; dirVal = null;
+  document.getElementById('commuteAddr').value = '';
+  document.getElementById('commuteHint').className='hint';
+  document.getElementById('commuteHint').textContent='\u00A0';
+  setActive(document.getElementById('hwToggle'), null);
+  setActive(document.getElementById('dirToggle'), null);
+  buildTrail();
+  document.getElementById('stepAddress').style.display='grid';
+  document.getElementById('addressRow2').style.display='flex';
+  document.getElementById('stepHomeWork').style.display='none';
+  document.getElementById('stepDirection').style.display='none';
+  document.getElementById('resultsSection').style.display='none';
+  document.getElementById('commuteAddr').focus();
+}
+
+document.getElementById('addressNextBtn').addEventListener('click', submitAddress);
+document.getElementById('commuteAddr').addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitAddress(); });
+document.getElementById('hwToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.segbtn'); if (!btn) return;
+  selectHW(btn.dataset.val);
+});
+document.getElementById('dirToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.segbtn'); if (!btn) return;
+  selectDir(btn.dataset.val);
+});
+document.getElementById('startOverBtn').addEventListener('click', resetSurvey);
+
+// --- mode switching ---
+function showCompareMode(){
+  ['stepAddress','addressRow2','stepHomeWork','stepDirection','answerTrail'].forEach(id=>{
+    document.getElementById(id).style.display='none';
+  });
+  document.getElementById('compareControls').style.display='grid';
+  document.getElementById('toCommuteRow').style.display='flex';
+  document.getElementById('resultsSection').style.display='block';
+  render();
+}
+function showCommuteMode(){
+  document.getElementById('compareControls').style.display='none';
+  document.getElementById('toCommuteRow').style.display='none';
+  resetSurvey();
+}
+document.getElementById('toCompareLink').addEventListener('click', showCompareMode);
+document.getElementById('toCommuteLink').addEventListener('click', showCommuteMode);
+
+document.getElementById('plotBtn').addEventListener('click', render);
+['fromAddr','toAddr'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown', (e)=>{ if(e.key==='Enter') render(); });
+  document.getElementById(id).addEventListener('blur', render);
+});
+
+drawBase();
+</script>
+</body>
+</html>
